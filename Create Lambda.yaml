@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+
+          def lambda_handler(event, context):
+              # Connect to the source RDS instance
+              rds = boto3.client('rds')
+              source_db = rds.describe_db_instances(DBInstanceIdentifier='source_db')
+              
+              # Connect to the target RDS instance
+              target_db = rds.describe_db_instances(DBInstanceIdentifier='target_db')
+              
+              # Copy table from source to target
+              copy_table_query = "COPY table_name FROM '{}' TO '{}'".format(source_db, target_db)
+              rds.execute_statement(DBInstanceIdentifier='target_db', Sql=copy_table_query)
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Table copied successfully!')
+              }
+
+  MyPostgreSQLDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: postgres
+      DBInstanceIdentifier: my-postgres-db
+      MasterUsername: myusername
+      MasterUserPassword: mypassword
+      AllocatedStorage: 20
+      DBInstanceClass: db.t2.micro
+      VPCSecurityGroups:
+        - !Ref MySecurityGroup
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      PubliclyAccessible: true
+
